@@ -1,95 +1,76 @@
-#include <string>
-#include <stack>
-#include <cctype>
-#include <vector>
-#include <sstream>
-#include <stdexcept>
+#include <unordered_map>
+#include <algorithm>
 
-static int getPriority(char op) {
-    switch (op) {
-        case '+': return 1;
-        case '-': return 1;
-        case '*': return 2;
-        case '/': return 2;
-        default: return 0;
+int countPairs1(int* arr, int len, int value) {
+    int count = 0;
+    for (int i = 0; i < len; ++i) {
+        for (int j = i + 1; j < len; ++j) {
+            if (arr[i] + arr[j] == value) {
+                ++count;
+            }
+        }
     }
+    return count;
 }
 
-static bool isOperator(char ch) {
-    return ch == '+' || ch == '-' || ch == '*' || ch == '/';
-}
-
-std::string infx2pstfx(const std::string& inf) {
-    std::stack<char> opStack;
-    std::vector<std::string> tokens;
-
-    for (char ch : inf) {
-        if (std::isalnum(ch)) {
-            tokens.push_back(std::string(1, ch));
-        }
-        else if (isOperator(ch)) {
-            while (!opStack.empty() && opStack.top() != '(' &&
-                   getPriority(opStack.top()) >= getPriority(ch)) {
-                tokens.push_back(std::string(1, opStack.top()));
-                opStack.pop();
-            }
-            opStack.push(ch);
-        }
-        else if (ch == '(') {
-            opStack.push(ch);
-        }
-        else if (ch == ')') {
-            while (!opStack.empty() && opStack.top() != '(') {
-                tokens.push_back(std::string(1, opStack.top()));
-                opStack.pop();
-            }
-            if (!opStack.empty() && opStack.top() == '(') {
-                opStack.pop();
+int countPairs2(int* arr, int len, int value) {
+    int* copy = new int[len];
+    for (int i = 0; i < len; ++i) copy[i] = arr[i];
+    std::sort(copy, copy + len);
+    int count = 0;
+    int left = 0;
+    int right = len - 1;
+    while (left < right) {
+        int sum = copy[left] + copy[right];
+        if (sum == value) {
+            if (copy[left] == copy[right]) {
+                int n = right - left + 1;
+                count += n * (n - 1) / 2;
+                break;
             } else {
-                throw std::runtime_error("Mismatched parentheses");
+                int leftVal = copy[left];
+                int rightVal = copy[right];
+                int leftCount = 0;
+                int rightCount = 0;
+                while (left <= right && copy[left] == leftVal) {
+                    ++leftCount;
+                    ++left;
+                }
+                while (right >= left && copy[right] == rightVal) {
+                    ++rightCount;
+                    --right;
+                }
+                count += leftCount * rightCount;
             }
+        } else if (sum < value) {
+            ++left;
+        } else {
+            --right;
         }
     }
+    delete[] copy;
+    return count;
+}
 
-    while (!opStack.empty()) {
-        tokens.push_back(std::string(1, opStack.top()));
-        opStack.pop();
+int countPairs3(int* arr, int len, int value) {
+    std::unordered_map<int, int> freq;
+    for (int i = 0; i < len; ++i) {
+        freq[arr[i]]++;
     }
-
-    std::string result;
-    for (size_t i = 0; i < tokens.size(); ++i) {
-        if (i > 0) result += ' ';
-        result += tokens[i];
+    int result = 0;
+    for (const auto& entry : freq) {
+        int a = entry.first;
+        int b = value - a;
+        if (a > b) continue;
+        if (a == b) {
+            int c = entry.second;
+            result += c * (c - 1) / 2;
+        } else {
+            auto it = freq.find(b);
+            if (it != freq.end()) {
+                result += entry.second * it->second;
+            }
+        }
     }
     return result;
-}
-
-int eval(const std::string& post) {
-    std::stack<int> st;
-    std::stringstream ss(post);
-    std::string item;
-
-    while (ss >> item) {
-        if (item.size() == 1 && isOperator(item[0])) {
-            if (st.size() < 2) throw std::runtime_error("Not enough operands");
-            int b = st.top(); st.pop();
-            int a = st.top(); st.pop();
-            char op = item[0];
-            int res;
-            if (op == '+') res = a + b;
-            else if (op == '-') res = a - b;
-            else if (op == '*') res = a * b;
-            else if (op == '/') {
-                if (b == 0) throw std::runtime_error("Division by zero");
-                res = a / b;
-            }
-            else throw std::runtime_error("Unknown operator");
-            st.push(res);
-        }
-        else {
-            st.push(std::stoi(item));
-        }
-    }
-    if (st.size() != 1) throw std::runtime_error("Invalid expression");
-    return st.top();
 }
